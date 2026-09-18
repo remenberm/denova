@@ -50,7 +50,7 @@ RUN set -eux; \
 # ============================================================
 FROM alpine:3.21
 
-RUN apk add --no-cache ca-certificates tzdata ripgrep git
+RUN apk add --no-cache ca-certificates tzdata ripgrep git socat
 
 RUN adduser -D -h /home/denova denova
 
@@ -67,5 +67,22 @@ EXPOSE 8080
 
 VOLUME ["/home/denova/workspace"]
 
-ENTRYPOINT ["denova"]
-CMD ["--workspace", "/home/denova/workspace"]
+# 创建启动脚本：socat 对外监听，denova 内部监听
+RUN cat > /usr/local/bin/entrypoint.sh <<'EOF'
+#!/bin/sh
+set -e
+
+INTERNAL_PORT=8081
+EXTERNAL_PORT=8080
+
+# 后台启动 socat：0.0.0.0:8080 -> 127.0.0.1:8081
+socat TCP-LISTEN:${EXTERNAL_PORT},fork,reuseaddr TCP:127.0.0.1:${INTERNAL_PORT} &
+
+# denova 用 exec 接管 PID 1，正确响应 SIGTERM
+exec denova -port "${INTERNAL_PORT}" "$@"
+EOF
+
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["-workspace", "/home/denova/workspace"]
