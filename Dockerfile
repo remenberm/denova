@@ -5,16 +5,12 @@ FROM node:22-alpine AS frontend-builder
 
 WORKDIR /build/web
 
-# 启用 corepack 以使用 pnpm
 RUN corepack enable
 
-# 直接复制整个前端目录，避免遗漏 pnpm-workspace.yaml / .npmrc 等配置
+# 复制整个前端目录，避免遗漏 pnpm-workspace.yaml / .npmrc 等配置
 COPY web/ ./
 
-# 安装依赖（保持 lockfile 校验）
 RUN pnpm install --frozen-lockfile
-
-# 构建前端
 RUN pnpm build
 
 
@@ -37,8 +33,12 @@ COPY . .
 # 将前端构建产物复制到后端嵌入目录
 COPY --from=frontend-builder /build/web/dist ./web/dist
 
-# 使用 embedweb 构建标签编译（前端嵌入二进制）
-RUN CGO_ENABLED=0 go build -tags embedweb -o /build/denova ./cmd
+# 自动查找 main 包并编译（前端嵌入二进制）
+RUN set -eux; \
+    MAIN_PKG=$(go list -f '{{if eq .Name "main"}}{{.ImportPath}}{{end}}' ./... | grep -v '^$' | head -n 1); \
+    echo "Building main package: $MAIN_PKG"; \
+    test -n "$MAIN_PKG"; \
+    CGO_ENABLED=0 go build -tags embedweb -o /build/denova "$MAIN_PKG"
 
 
 # ============================================================
