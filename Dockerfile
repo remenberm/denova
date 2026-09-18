@@ -50,24 +50,18 @@ RUN set -eux; \
 # ============================================================
 FROM alpine:3.21
 
+# 安装运行时依赖（增加 socat 用于端口转发）
 RUN apk add --no-cache ca-certificates tzdata ripgrep git socat
 
+# 创建非 root 用户
 RUN adduser -D -h /home/denova denova
 
 WORKDIR /home/denova
 
+# 复制编译好的二进制
 COPY --from=backend-builder /build/denova /usr/local/bin/denova
 
-RUN mkdir -p /home/denova/.denova /home/denova/workspace && \
-    chown -R denova:denova /home/denova
-
-USER denova
-
-EXPOSE 8080
-
-VOLUME ["/home/denova/workspace"]
-
-# 创建启动脚本：socat 对外监听，denova 内部监听
+# 以 root 身份创建 entrypoint 脚本（必须在 USER denova 之前）
 RUN cat > /usr/local/bin/entrypoint.sh <<'EOF'
 #!/bin/sh
 set -e
@@ -84,5 +78,18 @@ EOF
 
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
+# 数据与工作区目录，并授权给 denova 用户
+RUN mkdir -p /home/denova/.denova /home/denova/workspace && \
+    chown -R denova:denova /home/denova
+
+USER denova
+
+# 暴露对外端口（socat 监听）
+EXPOSE 8080
+
+# 默认工作区挂载点
+VOLUME ["/home/denova/workspace"]
+
+# 使用 entrypoint 脚本启动
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["-workspace", "/home/denova/workspace"]
