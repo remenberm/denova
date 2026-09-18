@@ -2,13 +2,13 @@ name: Sync Upstream and Build Docker Image
 
 on:
   schedule:
-    # 每天 UTC 02:00（北京时间 10:00）检查上游更新
+    # 每天 UTC 02:00（北京时间 10:00）自动检查上游更新
     - cron: '0 2 * * *'
   workflow_dispatch:   # 支持手动触发
 
 env:
   REGISTRY: ghcr.io
-  UPSTREAM_REPO: alfredxw/denova
+  UPSTREAM_REPO: alfredxw/denova   # 上游仓库
 
 jobs:
   sync-and-build:
@@ -21,28 +21,57 @@ jobs:
       - name: Checkout fork
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0   # 需要完整历史来合并上游
 
-      - name: Sync upstream
+      - name: Sync upstream (keep own workflows)
         id: sync
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          set -e
 
-          git remote add upstream https://github.com/${UPSTREAM_REPO}.git
+          # 1. 备份自己的 workflows
+          rm -rf /tmp/my-workflows
+          mkdir -p /tmp/my-workflows
+          if [ -d .github/workflows ]; then
+            cp -r .github/workflows/. /tmp/my-workflows/
+          fi
+
+          # 2. 拉取上游
+          git remote add upstream https://github.com/${UPSTREAM_REPO}.git || true
           git fetch upstream
 
           BEFORE=$(git rev-parse HEAD)
-          git merge --ff-only upstream/master || git merge upstream/master -m "Sync upstream $(date -u +%Y-%m-%d)"
+
+          # 3. 合并上游 master
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if ! git merge --no-edit upstream/master; then
+            echo "::error::合并上游时发生冲突，请手动处理"
+            exit 1
+          fi
+
           AFTER=$(git rev-parse HEAD)
 
+          # 4. 判断是否有更新
           if [ "$BEFORE" = "$AFTER" ]; then
             echo "changed=false" >> $GITHUB_OUTPUT
             echo "上游无更新，跳过构建"
-          else
-            echo "changed=true" >> $GITHUB_OUTPUT
-            git push origin master
+            exit 0
           fi
+
+          # 5. 用备份覆盖上游带下来的 workflows
+          rm -rf .github/workflows
+          mkdir -p .github/workflows
+          cp -r /tmp/my-workflows/. .github/workflows/
+
+          # 6. 提交并推送
+          git add .github/workflows
+          if ! git diff --cached --quiet; then
+            git commit -m "Keep own workflows after upstream sync"
+          fi
+          git push origin master
+
+          echo "changed=true" >> $GITHUB_OUTPUT
 
       - name: Generate date tag
         id: tag
