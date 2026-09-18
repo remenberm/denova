@@ -1,0 +1,24 @@
+name: Sync Upstream and Trigger Build
+
+on:
+  schedule:
+    # 每 6 小时检查一次上游更新，你可以按需调整频率
+    - cron: '0 */6 * * *'
+  workflow_dispatch: # 支持手动触发同步
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 获取完整历史，便于合并
+
+      - name: Sync with Upstream
+        uses: aormsby/Fork-Sync-With-Upstream-action@v3.4
+        with:
+          target_sync_branch: master # 你的 Fork 需要同步的分支名，根据实际情况修改
+          target_repo_token: ${{ secrets.GITHUB_TOKEN }}
+          upstream_sync_repo: alfredxw/denova # 上游仓库
+          upstream_sync_branch: master # 上游仓库的分支名
