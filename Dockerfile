@@ -30,8 +30,12 @@ RUN go mod download
 
 COPY . .
 
-# 将前端构建产物复制到后端嵌入目录
-COPY --from=frontend-builder /build/web/dist ./web/dist
+# 删除可能存在的旧前端产物（与 scripts/build.sh 保持一致）
+RUN rm -rf internal/webfs/dist
+
+# 将前端构建产物复制到后端嵌入目录（关键修正）
+# scripts/build.sh 中实际执行的是：cp -r web/dist internal/webfs/dist
+COPY --from=frontend-builder /build/web/dist ./internal/webfs/dist
 
 # 自动查找 main 包并编译（前端嵌入二进制）
 RUN set -eux; \
