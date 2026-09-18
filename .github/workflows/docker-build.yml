@@ -1,10 +1,9 @@
 name: Build and Push Docker Image
 
 on:
-  push:
-    tags:
-      - 'v*'                    # 推送 v* 标签时触发
-  workflow_dispatch:            # 支持手动触发
+  release:
+    types: [published]   # 当上游发布新 Release 时触发
+  workflow_dispatch:      # 支持手动触发，方便测试
 
 env:
   REGISTRY: ghcr.io
@@ -31,16 +30,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels)
+      - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=ref,event=branch
-            type=sha,prefix=
+            # 使用 Release 标签作为镜像版本，例如 v0.1.18
+            type=ref,event=tag
+            # 同时生成一个 latest 标签，方便用户拉取最新版
+            type=raw,value=latest,enable=${{ github.event_name == 'release' }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
