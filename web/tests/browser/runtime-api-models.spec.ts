@@ -4,7 +4,7 @@ import { openWritingAgent } from '../support/agent-chat'
 
 for (const engine of ['codex', 'claude'] as const) {
   for (const theme of ['dark', 'light'] as const) {
-    test(`${engine} API profiles work without CLI login in ${theme}`, async ({ page, request, browserDiagnostics }) => {
+    test(`${engine} API profiles and new-conversation defaults work without CLI login in ${theme}`, async ({ page, request, browserDiagnostics }) => {
       test.setTimeout(90_000)
       browserDiagnostics.allow(/console\.error: Failed to load resource:.*409.*\/api\/agent-runtimes\/(codex|claude)\/models/)
       const before = await (await request.get('/api/settings')).json()
@@ -49,17 +49,33 @@ for (const engine of ['codex', 'claude'] as const) {
         const created = await request.post('/api/sessions', { data: { title: 'API conversation' } })
         expect(created.ok(), await created.text()).toBe(true)
         const sessionId = (await created.json()).id
-        expect((await request.post('/api/sessions/switch', { data: { id: sessionId } })).ok()).toBe(true)
+        const configURL = `/api/projects/${book.projectId}/conversation-config?mode=writing&session_id=${sessionId}`
+        const original = await (await request.get(configURL)).json()
+        expect(original.runtime).toEqual({ kind: engine, [engine]: { profile_id: profileID } })
         await page.reload()
         await openWritingAgent(page)
+        await page.getByRole('button', { name: '会话历史', exact: true }).click()
+        await page.getByRole('option', { name: '切换到会话 API conversation', exact: true }).click()
         const trigger = page.locator('[data-model-profile-trigger]').filter({ visible: true })
         await trigger.click()
         await page.getByRole('menuitem', { name: `运行时：${engine === 'codex' ? 'Codex' : 'Claude Code'}`, exact: true }).click()
         await expect(runtime.getByRole('group', { name: '模型来源' })).toBeVisible()
-        await page.getByRole('button', { name: '应用到此会话', exact: true }).click()
-        await expect(page.getByText('已应用。下一次执行使用此配置。', { exact: true })).toBeVisible()
+        const enginePicker = runtime.getByRole('combobox', { name: '执行引擎', exact: true })
+        await enginePicker.click()
+        await page.getByRole('option', { name: 'Native', exact: true }).click()
+        await expect.poll(async () => (await (await request.get('/api/settings')).json()).user.agent_runtimes.ide.selected).toBe('native')
+        await expect(runtime.getByText('运行时切换仅对新会话生效，已有会话继续使用原运行时。', { exact: true })).toBeVisible()
+        expect(await (await request.get(configURL)).json()).toMatchObject({ revision: original.revision, runtime: original.runtime })
+        for (const width of [1440, 390]) {
+          await page.setViewportSize({ width, height: 960 })
+          await enginePicker.scrollIntoViewIfNeeded()
+          expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+          await page.screenshot({ path: test.info().outputPath(`runtime-defaults-${width}.png`) })
+        }
+        await page.setViewportSize({ width: 1440, height: 960 })
         await openWritingAgent(page)
         await trigger.click()
+        await expect(page.getByRole('menuitem', { name: `运行时：${engine === 'codex' ? 'Codex' : 'Claude Code'}`, exact: true })).toBeVisible()
         const apiOption = page.getByRole('menuitem', { name: `API · ${label}`, exact: true })
         await expect(apiOption).toBeEnabled()
         await apiOption.click()
@@ -67,9 +83,20 @@ for (const engine of ['codex', 'claude'] as const) {
         await trigger.click()
         await expect(page.getByRole('button', { name: '高', exact: true })).toHaveCount(0)
         await page.keyboard.press('Escape')
-        const saved = await (await request.get(`/api/projects/${book.projectId}/conversation-config?mode=writing&session_id=${sessionId}`)).json()
+        const saved = await (await request.get(configURL)).json()
         expect(saved.runtime[engine]).toEqual({ profile_id: profileID })
         expect(JSON.stringify(saved)).not.toContain('fixture-only')
+        const newSession = await request.post('/api/sessions', { data: { title: 'New Native conversation' } })
+        expect(newSession.ok(), await newSession.text()).toBe(true)
+        const newSessionId = (await newSession.json()).id
+        const newConfig = await (await request.get(`/api/projects/${book.projectId}/conversation-config?mode=writing&session_id=${newSessionId}`)).json()
+        expect(newConfig.runtime?.kind ?? 'native').toBe('native')
+        await page.reload()
+        await openWritingAgent(page)
+        await page.getByRole('button', { name: '会话历史', exact: true }).click()
+        await page.getByRole('option', { name: '切换到会话 New Native conversation', exact: true }).click()
+        await trigger.click()
+        await expect(page.getByRole('menuitem', { name: '运行时：Native', exact: true })).toBeVisible()
       } finally {
         await save({ theme: before.user.theme, language: 'zh-CN', agent_runtimes: { ide: { selected: 'native' } }, model_endpoints: before.user.model_endpoints, model_profiles: before.user.model_profiles })
       }

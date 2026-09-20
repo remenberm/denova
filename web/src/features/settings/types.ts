@@ -4,7 +4,7 @@ import type { ToolPresentationKind } from '@/lib/api-client/types'
 export type { AgentApprovalMode } from '@/features/agent-approval/modes'
 
 export interface Settings {
-  agent_runtimes?: Partial<Record<'ide' | 'general', import('@/features/agent-runtime/types').RuntimePreferences>>
+  agent_runtimes?: Partial<Record<'ide' | 'general' | 'interactive_story', import('@/features/agent-runtime/types').RuntimePreferences>>
   openai_api_key?: string
   openai_base_url?: string
   openai_model?: string

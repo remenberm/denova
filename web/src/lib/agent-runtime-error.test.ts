@@ -14,6 +14,13 @@ import {
 const t = (key: string) => key
 
 describe('agent runtime error localization', () => {
+  it('localizes product runtime error keys for live and recovered errors', () => {
+    expect(localizeAgentRuntimeError({ error_key: 'agentRuntime.operationFailed' }, 'fallback', t))
+      .toBe('agentRuntime.operationFailed')
+    expect(localizeAgentRuntimeError({ error_key: 'agentRuntime.interrupted', message: 'internal' }, 'fallback', t))
+      .toBe('agentRuntime.interrupted')
+  })
+
   it('localizes truncated model output from both live and recovered terminals', () => {
     expect(localizeAgentRuntimeError({ code: MODEL_OUTPUT_TRUNCATED_CODE, message: 'internal' }, 'fallback', t))
       .toBe('common.modelOutputTruncated')

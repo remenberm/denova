@@ -107,6 +107,7 @@ describe('story stage stream event contract', () => {
       .filter(([, handling]) => handling === 'ignored')
       .map(([event]) => event)
     expect(ignored).toEqual([
+      'goal_evaluation_failed',
       'context_cleanup',
       'context_normalizer',
       'post_run_verification',
@@ -123,7 +124,7 @@ describe('story stage stream event contract', () => {
     await fixture.consumer.consume(
       eventStream([
         ...ignored.map((event, index) => ({ id: String(index + 1), event, data: '{}' })),
-        { id: '10', event: 'done', data: '{}' },
+        { id: String(ignored.length + 1), event: 'done', data: '{}' },
       ]),
       fixture.consumer.initialOutcome(),
     )
@@ -234,24 +235,6 @@ describe('story stage stream event contract', () => {
     expect(error?.content).toBe('common.modelOutputTruncated')
   })
 
-  it('shows a Goal evaluation failure without failing the completed primary turn', async () => {
-    const fixture = consumerFixture()
-    const outcome = await fixture.consumer.consume(
-      eventStream([
-        {
-          id: '1',
-          event: 'goal_evaluation_failed',
-          data: JSON.stringify({ code: 'agent_runtime.goal_evaluation_failed', detail: 'invalid JSON' }),
-        },
-        { id: '2', event: 'done', data: '{}' },
-      ]),
-      fixture.consumer.initialOutcome(),
-    )
-
-    const warning = buildAgentMessageViews(fixture.messages()).find((view) => view.kind === 'error')
-    expect(warning?.content).toBe('storyStage.activity.goalEvaluationFailed')
-    expect(outcome).toMatchObject({ streamFailed: false, finishedNormally: true, terminalEventReceived: true })
-  })
 })
 
 describe('story stage display checkpoint recovery', () => {

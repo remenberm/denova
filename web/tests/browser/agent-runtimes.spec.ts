@@ -37,6 +37,9 @@ for (const language of ['zh-CN', 'en-US']) {
     await page.goto('/')
     await page.getByRole('button', { name: 'Agents', exact: true }).click()
     const runtime = page.locator('[data-agent-configuration-section="runtime"]')
+    await expect(runtime.getByText(language === 'zh-CN'
+      ? '运行时切换仅对新会话生效，已有会话继续使用原运行时。'
+      : 'Runtime changes apply only to new conversations. Existing conversations keep their original runtime.', { exact: true })).toBeVisible()
     const hint = engine === 'claude'
       ? (language === 'zh-CN' ? '请在运行 Denova 的电脑上执行 claude auth login，然后重新检查连接。' : 'Run claude auth login on the computer running Denova, then check the connection again.')
       : language === 'zh-CN'
@@ -118,7 +121,6 @@ for (const theme of ['dark', 'light']) {
       { id: 'shared.input_budget', owner: 'shared', state: 'editable' },
       { id: 'native.context_policy', owner: 'native', state: 'inactive', reason_key: 'agentRuntime.configuration.otherRuntime' },
     ]) })
-    await expect(page.getByRole('button', { name: '应用到此会话', exact: true })).toHaveCount(0)
     const inactive = page.locator('[data-agent-configuration-section="inactive-runtime"]')
     await inactive.getByRole('button', { name: '已保存的其他引擎配置', exact: true }).click()
     await expect(inactive.getByText('Native 的权限、上下文压缩、检查点指引和 Subagents 配置已保留，当前不生效。切回 Native 后恢复使用。')).toBeVisible()

@@ -321,6 +321,8 @@ const DisplayEventRoleNarrative = "narrative"
 // Role 为 narrative 的事件是正文位置锚点：正文本身不进入 DisplayEvents，
 // 锚点只标记正文在事件流中的相对位置，供前端按真实顺序穿插渲染。
 type DisplayEvent struct {
+	Phase             string                  `json:"phase,omitempty"`
+	RuntimeManaged    bool                    `json:"runtime_managed,omitempty"`
 	AgentCycle        int                     `json:"agent_cycle,omitempty"`
 	ID                string                  `json:"id,omitempty"`
 	Role              string                  `json:"role"`
@@ -520,6 +522,7 @@ type Snapshot struct {
 	ContextRevision            uint64                           `json:"context_revision,omitempty"`
 	Turns                      []TurnEvent                      `json:"turns"`
 	PendingPlayerInputs        []PlayerInputAcceptedEvent       `json:"pending_player_inputs,omitempty"`
+	PendingDisplayEvents       []DisplayEvent                   `json:"pending_display_events,omitempty"`
 	PendingModelContextBatches []ModelContextBatchEvent         `json:"pending_model_context_batches,omitempty"`
 	CurrentTurn                *TurnEvent                       `json:"current_turn,omitempty"`
 	TokenUsageEvents           []TokenUsageEvent                `json:"token_usage_events,omitempty"`

@@ -7,8 +7,7 @@ import (
 
 	"denova/config"
 	"denova/internal/agents/conversationconfig"
-	"denova/internal/agents/external/codex"
-	"denova/internal/app/agentruntime"
+	agentruntime "denova/internal/agents/runtime"
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 )
@@ -55,7 +54,7 @@ func writeEngineError(ctx context.Context, c *app.RequestContext, err error) {
 		status, key = consts.StatusConflict, "agentRuntime.notReady"
 	case errors.Is(err, agentruntime.ErrEngineNotInstalled):
 		key = "agentRuntime.notInstalled"
-	case errors.Is(err, codex.ErrVersionUnsupported):
+	case agentruntime.IsVersionUnsupported(err):
 		key = "agentRuntime.incompatibleVersion"
 	}
 	// Do not log raw authentication errors or URLs, which can contain secrets.

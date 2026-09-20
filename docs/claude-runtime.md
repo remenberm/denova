@@ -1,6 +1,6 @@
 # Claude Code runtime
 
-Writing and General agents, including their custom agents, can select Claude Code in the Agents page. Game and other specialized agents retain their existing runtimes. The conversation model picker changes the current session; applying an agent's engine configuration remains explicit.
+Writing and General agents, including their custom agents, can select Claude Code in the Agents page. Game and other specialized agents retain their existing runtimes. Runtime changes on the Agents page apply only to new conversations; existing conversations keep their original runtime. The conversation model picker can still change the model within that runtime.
 
 Install Claude Code **2.1.259 or newer**, authenticate locally with `claude auth login` when using CLI models, then check the connection in Agents. Denova discovers the executable on the host PATH or in `~/.local/bin`. On Windows it also resolves global npm installations directly to their native executable, or a legacy JavaScript entrypoint with Node, without executing a shell wrapper. Denova does not install the CLI or copy credentials into user projects.
 

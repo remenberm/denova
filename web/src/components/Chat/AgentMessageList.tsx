@@ -133,10 +133,14 @@ export function MessageList({ projectId, attachmentScope, messages, projection, 
   const initialPosition = projection?.initialPosition ?? 'end'
   const subAgentPresentation = projection?.subAgentPresentation ?? 'card'
   const executionTimings = useMemo(() => selectAgentExecutionTimings(views), [views])
-  const hasActiveResponse = views.some((view) =>
+  // Historical tool cards can retain an interrupted running state. Only this
+  // reply can replace the waiting shimmer, including turns without text yet.
+  const replyStart = views.findLastIndex(view => view.kind === 'user' || view.kind === 'clear') + 1
+  const hasActiveResponse = views.slice(replyStart).some((view) =>
     view.kind !== 'user' &&
     !isAgentRunMetadataView(view) &&
     view.kind !== 'clear' &&
+    (!activeRunId || !view.metadata.run_id || view.metadata.run_id === activeRunId || view.metadata.subagent) &&
     (view.streaming || view.status === 'running'),
   )
   // 真实 thinking / tool / 正文行已经承担进度展示；额外 activity 行会重复展示，

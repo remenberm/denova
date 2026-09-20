@@ -8,6 +8,7 @@ import type { VisibleAgentKey } from '@/features/agents/agent-registry'
 import { Button } from '@/components/ui/button'
 import { AgentComposerShell } from './AgentComposerShell'
 import { ModelProfileSwitcher } from './ModelProfileSwitcher'
+import { ConversationRuntimeMenu } from './ConversationRuntimeMenu'
 import { ComposerTokenInput, type ComposerTokenInputHandle, type ComposerTokenSpec, type ComposerTrigger } from './composer-token-input'
 import { workspaceFileName } from '@/lib/workspace-path'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -179,6 +180,7 @@ export function InputArea({
   const { t } = useTranslation()
   const defaultApproval = useAgentApprovalMode()
   const conversationConfig = useConversationConfig(conversationBinding)
+  const canSwitchRuntime = Boolean(conversationBinding && (agentKey === 'ide' || agentKey === 'general' || agentKey === 'interactive_story'))
   const externalEngine = Boolean(conversationConfig.snapshot?.runtime && conversationConfig.snapshot.runtime.kind !== 'native')
   const planMode = externalEngine ? false : configuredPlanMode
   const onTogglePlanMode = externalEngine ? undefined : configuredOnTogglePlanMode
@@ -195,6 +197,7 @@ export function InputArea({
   const isMobile = useIsMobile()
   const [value, setValue] = useState(() => draftKey ? inputDrafts.get(draftKey) || '' : '')
   const [tokenUsageOpen, setTokenUsageOpen] = useState(false)
+  const [actionsOpen, setActionsOpen] = useState(false)
   const [referenceQuery, setReferenceQuery] = useState<string | null>(null)
   const [styleSceneQuery, setStyleSceneQuery] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -672,13 +675,13 @@ export function InputArea({
           }
           toolbarStart={
             <>
-              <DropdownMenu>
+              <DropdownMenu open={actionsOpen} onOpenChange={setActionsOpen}>
                 <DropdownMenuTrigger asChild>
                   <Button
                     type="button"
                     size="icon-sm"
                     className="nova-agent-composer-icon h-8 w-8 shrink-0 rounded-[10px] border border-[var(--nova-border)] bg-[var(--nova-surface)] text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)] disabled:opacity-45"
-                    disabled={!attachmentsEnabled && !onGoalSubmit && !onTogglePlanMode && !composerSettingsControl && !onContextAnalyze && tokenUsageMessages.length === 0}
+                    disabled={!canSwitchRuntime && !attachmentsEnabled && !onGoalSubmit && !onTogglePlanMode && !composerSettingsControl && !onContextAnalyze && tokenUsageMessages.length === 0}
                     aria-label={t('chat.input.actions')}
                   >
                     <List className="h-3.5 w-3.5" />
@@ -724,6 +727,7 @@ export function InputArea({
                       ) : null}
                     </DropdownMenuGroup>
                   ) : null}
+                  {canSwitchRuntime && <ConversationRuntimeMenu controller={conversationConfig} runActive={generationActive} disabled={disabled} onSwitched={() => setActionsOpen(false)} />}
                   {composerSettingsControl}
                   <DropdownMenuGroup>
                     <ComposerMenuItem
@@ -733,12 +737,12 @@ export function InputArea({
                       detailTone="faint"
                       onSelect={() => setTokenUsageOpen(true)}
                     />
-                    <ComposerMenuItem
+                    {!externalEngine && <ComposerMenuItem
                       icon={ScrollText}
                       label={t('chat.contextAnalysis.action')}
                       disabled={disabled || generationActive || !onContextAnalyze}
                       onSelect={handleContextAnalyze}
-                    />
+                    />}
                   </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>

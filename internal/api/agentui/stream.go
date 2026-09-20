@@ -105,6 +105,16 @@ func (e *StreamEncoder) WriteEvent(ev appsvc.AgentEvent) error {
 			return err
 		}
 		return e.writeData(DataTypeContextCompaction, eventID(data, "context-compaction"), data)
+	case "todo_updated":
+		// Native already supplies an inspectable Todo tool card. Provider plans
+		// have no host tool call, so only those need a separate display snapshot.
+		if data["runtime_managed"] != true {
+			return nil
+		}
+		if err := e.closeOpenContentFor(contentSource); err != nil {
+			return err
+		}
+		return e.writeData(DataTypeTodo, eventID(data, "todo"), data)
 	case "interactive_image":
 		if err := e.closeOpenContentFor(contentSource); err != nil {
 			return err

@@ -86,7 +86,7 @@ var agentKindRegistry = []AgentKindDefinition{
 		ToolCapabilities: []string{
 			AgentToolFilesystemRead, AgentToolWebSearch, AgentToolWebFetch, AgentToolBrowser,
 			AgentToolSkills, AgentToolDelegation, AgentToolLoreRead,
-			AgentToolScript,
+			AgentToolScript, AgentToolTodo,
 		},
 		ModelOverride:    func(settings AgentModelSettings) AgentModelOverride { return settings.InteractiveStory },
 		SetModelOverride: func(settings *AgentModelSettings, override AgentModelOverride) { settings.InteractiveStory = override },

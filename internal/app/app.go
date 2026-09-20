@@ -13,6 +13,7 @@ import (
 	"denova/config"
 	"denova/internal/agents/canonicalstore"
 	agentexecution "denova/internal/agents/execution"
+	agentruntime "denova/internal/agents/runtime"
 	"denova/internal/agents/session"
 	"denova/internal/agents/trajectory"
 	activityapp "denova/internal/app/activity"
@@ -49,7 +50,7 @@ type App struct {
 	sessionStore                    *session.Store
 	session                         *session.Session
 	executionRuntime                *agentexecution.Runtime
-	agentEngines                    *appagentruntime.Engines
+	agentEngines                    *agentruntime.Engines
 	projectRegistry                 *projectdomain.Registry
 	bookMetaStore                   *book.MetaStore
 	versionService                  *book.VersionService
@@ -288,7 +289,7 @@ var ErrNoWorkspaceOpen = settingsapp.ErrProjectRequired
 // ErrAgentOperationActive rejects implicit replacement. Callers must target
 // the running operation with Follow Up, Steer, or Abort before starting a new
 // root operation.
-var ErrAgentOperationActive = appagentruntime.ErrOperationActive
+var ErrAgentOperationActive = agentruntime.ErrOperationActive
 
 // ErrWorkspaceTransition prevents a task from binding half to an old
 // workspace and half to a newly constructed runtime.
@@ -300,7 +301,7 @@ var ErrAgentContextChanged = appagentruntime.ErrContextChanged
 
 func (a *App) ensureServices() {
 	a.servicesOnce.Do(func() {
-		a.agentEngines = appagentruntime.NewEngines()
+		a.agentEngines = agentruntime.NewEngines()
 		a.workspaceApp = &workspaceService{app: a}
 		a.chatApp = &ChatAppService{
 			app: a, starts: apptask.NewStartRegistry(apptask.StartRegistryOptions{Label: "Writing"}),
@@ -351,7 +352,7 @@ func (a *App) AgentChat() *agentchatapp.Service {
 
 // AgentEngines exposes host-local optional runtimes. Access is lazy and does
 // not discover executables or start a connection until an explicit operation.
-func (a *App) AgentEngines() *appagentruntime.Engines {
+func (a *App) AgentEngines() *agentruntime.Engines {
 	a.ensureServices()
 	return a.agentEngines
 }

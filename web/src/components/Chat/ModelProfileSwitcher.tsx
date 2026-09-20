@@ -74,11 +74,10 @@ export function ModelProfileSwitcher({ agentKey, workspace, conversationConfig, 
         className="w-60 border-[var(--nova-border)] bg-[var(--nova-surface-2)] p-1.5 text-[var(--nova-text)]"
       >
         <DropdownMenuGroup>
-          <DropdownMenuItem disabled={!navigation} className="cursor-pointer text-xs text-muted-foreground"
+          <DropdownMenuItem disabled={!navigation} className="cursor-pointer text-[11px] text-muted-foreground"
             onSelect={() => navigation?.open({ kind: 'config_resource', resource: 'agent_profile',
-              id: conversationConfig?.snapshot?.custom_agent_id || agentKey, scope: 'user', section: 'runtime',
-              conversation: conversationConfig?.binding })}>
-            {selector.t('agentRuntime.currentRuntime', { runtime: runtimeName })}
+              id: conversationConfig?.snapshot?.custom_agent_id || agentKey, scope: 'user', section: 'runtime' })}>
+            <span className="truncate">{selector.t('agentRuntime.currentRuntime', { runtime: runtimeName })}</span>
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />

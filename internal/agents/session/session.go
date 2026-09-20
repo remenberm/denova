@@ -305,6 +305,8 @@ func (s *Session) History() []HistoryEntry {
 				ID:                   record.display.ID,
 				DisplaySegmentID:     record.display.ID,
 				DisplayPhase:         record.display.DisplayPhase,
+				Phase:                record.display.Phase,
+				RuntimeManaged:       record.display.RuntimeManaged,
 				AgentCycle:           record.display.AgentCycle,
 				Role:                 record.display.Role,
 				Content:              record.display.Content,

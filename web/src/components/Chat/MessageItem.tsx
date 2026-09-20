@@ -232,6 +232,9 @@ function MessageItemContent({ projectId = '', message, assistantPresentation = '
     case 'context_compaction':
       return <ContextCompactionBlock message={message} />
 
+    case 'todo_updated':
+      return <TodoListBlock message={message} />
+
     // Usage records are summarized in TokenUsagePanel rather than the timeline.
     case 'token_usage':
       return null

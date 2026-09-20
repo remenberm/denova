@@ -114,7 +114,6 @@ func BuildInteractiveStoryDefinitionWithCompositionForHost(
 		ProjectState:      state,
 		EnableSkills:      true,
 		InteractiveHost:   host.Interactive,
-		DisableWriteTodos: true,
 		ExtraTools:        host.RootTools,
 		ReadAdapters:      host.ReadAdapters,
 		ExtraMiddlewares:  handlers,
@@ -320,7 +319,7 @@ func buildAgentDefinitionWithComposition(ctx context.Context, cfg *config.Config
 	}
 	var goalManager agent.GoalManager
 	switch spec.Kind {
-	case config.AgentKindGeneral, config.AgentKindIDE, config.AgentKindInteractiveStory:
+	case config.AgentKindGeneral, config.AgentKindIDE:
 		goalManager = agentlifecycle.NewGoalManager()
 	}
 	rootTools, err := agent.StaticToolsIdentified(denovaCapabilityIdentity("denova.tools", struct {
@@ -367,6 +366,7 @@ func buildAgentDefinitionWithComposition(ctx context.Context, cfg *config.Config
 			ContextWindowTokens: config.ResolveAgentModel(cfg, spec.Kind).ContextWindowTokens,
 		}),
 		Compaction: compaction,
+		Elision:    agentcompaction.NewElisionPolicyForModel(cfg, spec.Kind, config.ResolveAgentModel(cfg, spec.Kind).ContextWindowTokens),
 		Goal:       goalManager,
 		Permission: permission,
 		Execution:  agentExecutionPolicy(cfg),
@@ -608,6 +608,7 @@ func buildChildDefinition(cfg *config.Config, spec childDefinitionSpec) (agentde
 		// Goals are a root product workflow. Delegated Agents keep isolated
 		// task transcripts and must not create or continue a parent Goal.
 		Compaction: compaction, Permission: permission,
+		Elision:   agentcompaction.NewElisionPolicyForModel(cfg, spec.ParentKind, spec.ModelContextWindow),
 		Execution: agentExecutionPolicy(cfg),
 	}
 	behavior, err := agent.DefinitionBehaviorIdentity(definition)

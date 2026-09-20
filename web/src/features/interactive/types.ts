@@ -399,9 +399,11 @@ export interface TurnResult {
 }
 
 export interface TurnDisplayEvent {
+  phase?: string
+  runtime_managed?: boolean
   agent_cycle?: number
   id?: string
-  role: 'assistant' | 'thinking' | 'tool_call' | 'tool_result' | 'narrative'
+  role: 'assistant' | 'thinking' | 'tool_call' | 'tool_result' | 'narrative' | 'context_compaction' | 'todo_updated'
   content?: string
   name?: string
   args?: string
@@ -725,6 +727,7 @@ export interface RuleResolutionRerollInput {
 }
 
 export interface Snapshot {
+  pending_display_events?: TurnDisplayEvent[]
   story_id: string
   branch_id: string
   context_revision?: number
@@ -749,6 +752,7 @@ export interface Snapshot {
 // Keep this wire DTO separate from Snapshot because the UI also merges SSE
 // deltas into its local projection.
 export interface InteractiveSnapshotResponse {
+  pending_display_events?: TurnDisplayEvent[]
   story_id: string
   branch_id: string
   context_revision?: number

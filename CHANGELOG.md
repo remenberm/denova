@@ -14,11 +14,11 @@ Denova records only major user-visible features, important compatibility or data
 
 ### Added / 新增
 
-- 写作、General 及对应自定义 Agent 可在 Agents 页选择 Native、Codex 或 Claude Code 执行引擎，分别保留专属配置；外部引擎可复用本机登录或选择 Denova 中兼容的 API 模型，无需修改 CLI 配置，支持提问、领域工具和会话历史续接。
-- Writing, General, and their custom Agents can select Native, Codex, or Claude Code on the Agents page and retain separate engine settings. External engines can use local sign-in or compatible API models configured in Denova without editing CLI configuration, while supporting questions, domain tools, and conversation history.
+- 写作、General、Game 及对应自定义 Agent 支持 Native、Codex 和 Claude Code，可从输入框选项栏在回合间直接切换。外部引擎复用持续会话和自身压缩，支持共通的压缩卡片、排队、追加、暂停恢复、Goal 与 Todo；可使用本机登录或 Denova 中兼容的 API 模型。Game 保留已接纳的草稿、骰点和状态提交。
+- Writing, General, Game, and their custom Agents support Native, Codex, and Claude Code, selectable from the composer between turns. External engines retain their sessions and use their own compaction, with shared compaction cards, queues, follow-ups, pause/resume, Goals, and Todos. Use local sign-in or compatible API models configured in Denova; Game retains accepted drafts, dice results, and state submission.
 
-- 首次将已有会话切换到外部引擎时保存 journal 备份；启用后的会话和 Agent Profile 使用新格式，v0.4.5 无法读取，切回 Native 不会降级格式。
-- Existing conversations are backed up before their first external-engine switch. Enabled conversations and Agent Profiles use a new format unreadable by v0.4.5; switching back to Native does not downgrade it.
+- 首次写入外部执行或运行控制记录前备份对应 Session / Story journal。新增记录和 Agent Profile 配置无法由 v0.4.5 读取；切回 Native 不会降级格式，回滚需恢复升级前备份并另行保留之后的新内容。
+- Session and Story journals are backed up before their first external execution or runtime-control records. New records and Agent Profile settings are unreadable by v0.4.5; switching back to Native does not downgrade them. Rolling back requires restoring the pre-upgrade backup and separately preserving newer content.
 
 - Agent 可通过 `read` 查看本地图片与生成图；写作和游戏保留读取时的图片副本，重启后仍可继续分析。
 - Agents can inspect local and generated images with `read`; Writing and Game retain captured image copies for continued analysis after restart.

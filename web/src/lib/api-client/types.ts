@@ -116,6 +116,7 @@ export interface RuleRollChatMessage extends ChatMessageBase {
 }
 
 export interface ContextCompactionChatMessage extends ChatMessageBase {
+  runtime_managed?: boolean
   role: 'context_compaction'
   status?: ChatMessageStatus
   phase?: string
@@ -161,6 +162,10 @@ export interface SystemChatMessage extends ChatMessageBase {
   role: 'system'
 }
 
+export interface TodoChatMessage extends ChatMessageBase {
+  role: 'todo_updated'
+}
+
 export interface ErrorChatMessage extends ChatMessageBase {
   role: 'error'
 }
@@ -176,6 +181,7 @@ export type ChatMessage =
   | ContextCompactionChatMessage
   | TokenUsageChatMessage
   | ProposedPlanChatMessage
+  | TodoChatMessage
   | SystemChatMessage
   | ErrorChatMessage
 

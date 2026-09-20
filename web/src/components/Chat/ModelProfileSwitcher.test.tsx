@@ -7,6 +7,7 @@ import { ToolNavigationProvider } from './tool-navigation'
 
 const settingsMocks = vi.hoisted(() => ({
   fetchSettings: vi.fn(),
+  fetchProjectSettings: vi.fn(),
   fetchEngineModels: vi.fn(),
   profiles: [] as { id: string; label: string; modelLabel: string }[],
 }))
@@ -16,6 +17,7 @@ vi.mock('@/features/agent-runtime/api-profiles', () => ({ useRuntimeProfiles: ()
 
 vi.mock('@/features/settings/api', () => ({
   fetchSettings: settingsMocks.fetchSettings,
+  fetchProjectSettings: settingsMocks.fetchProjectSettings,
 }))
 
 vi.mock('@/features/settings/query', () => ({
@@ -24,11 +26,11 @@ vi.mock('@/features/settings/query', () => ({
 }))
 
 describe('ModelProfileSwitcher', () => {
-  for (const agentKey of ['ide', 'interactive_story'] as const) {
+  for (const agentKey of ['ide', 'general', 'interactive_story'] as const) {
     it(`links the ${agentKey} Native runtime to its Agents configuration`, async () => {
       settingsMocks.fetchSettings.mockResolvedValue({ effective: { openai_model: 'test-model' } })
       const open = vi.fn()
-      const binding = { mode: agentKey === 'ide' ? 'writing' : 'interactive', project_id: 'project', session_id: 'session' } as const
+      const binding = { mode: agentKey === 'ide' ? 'writing' : agentKey === 'general' ? 'agent_chat' : 'interactive', project_id: 'project', session_id: 'session' } as const
       const controller: ConversationConfigController = {
         binding, snapshot: { agent_kind: agentKey, profile_id: 'default', thinking_level: 'medium', approval_mode: 'write', revision: 1 },
         initialized: true, loading: false, saving: false, error: null, patch: vi.fn(), reload: vi.fn(),
@@ -36,8 +38,9 @@ describe('ModelProfileSwitcher', () => {
       render(<ToolNavigationProvider value={{ workspace: '', open }}><ModelProfileSwitcher agentKey={agentKey} conversationConfig={controller} /></ToolNavigationProvider>)
       await waitFor(() => expect(screen.getByRole('button', { name: /切换模型/ })).toBeEnabled())
       await userEvent.click(screen.getByRole('button', { name: /切换模型/ }))
+      expect(screen.queryByText('切换运行时')).not.toBeInTheDocument()
       await userEvent.click(screen.getByRole('menuitem', { name: '运行时：Native' }))
-      expect(open).toHaveBeenCalledWith({ kind: 'config_resource', resource: 'agent_profile', id: agentKey, scope: 'user', section: 'runtime', conversation: binding })
+      expect(open).toHaveBeenCalledWith({ kind: 'config_resource', resource: 'agent_profile', id: agentKey, scope: 'user', section: 'runtime' })
     })
   }
   it('uses only Denova profiles without requesting CLI models for an API conversation', async () => {

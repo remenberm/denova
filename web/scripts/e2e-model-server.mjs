@@ -2,6 +2,7 @@ import { createServer } from 'node:http'
 import path from 'node:path'
 import process from 'node:process'
 import { compactionCompletion, compactionControl } from './e2e-compaction-fixture.mjs'
+import { responsesRequest, responsesControl, captureNativeRequest, runtimeCompletion, writeCompletionFrame, finishCompletion } from './e2e-responses-fixture.mjs'
 
 const port = Number(process.env.DENOVA_E2E_MODEL_PORT || '18081')
 const narrative = '石门缓缓开启，暖色灯光照亮了前方的旧车站。'
@@ -251,8 +252,8 @@ function writeChatCompletion(response, frames) {
     'Cache-Control': 'no-cache',
     Connection: 'keep-alive',
   })
-  for (const frame of frames) response.write(`data: ${JSON.stringify(frame)}\n\n`)
-  response.end('data: [DONE]\n\n')
+  for (const frame of frames) writeCompletionFrame(response, frame)
+  finishCompletion(response)
 }
 
 async function writeGatedMultiAgentCompletion(response, child) {
@@ -302,6 +303,7 @@ function writeModelError(response, message) {
 
 const server = createServer(async (request, response) => {
   const requestURL = new URL(request.url || '/', 'http://127.0.0.1')
+  if (request.method === 'GET' && responsesControl(requestURL, response, writeJSON)) return
   if (request.method === 'GET' && compactionControl(requestURL, response, writeJSON)) return
   if (request.method === 'GET' && request.url === '/health') {
     writeJSON(response, 200, { status: 'ok' })
@@ -340,7 +342,7 @@ const server = createServer(async (request, response) => {
     writeJSON(response, 200, { allowed: true })
     return
   }
-  if (request.method !== 'POST' || request.url !== '/v1/chat/completions') {
+  if (request.method !== 'POST' || !['/v1/chat/completions', '/v1/responses'].includes(request.url)) {
     writeJSON(response, 404, { error: 'not found' })
     return
   }
@@ -348,6 +350,8 @@ const server = createServer(async (request, response) => {
   let body
   try {
     body = await readJSONBody(request)
+    if (request.url === '/v1/responses') body = responsesRequest(body, response)
+    else captureNativeRequest(body)
   } catch (error) {
     writeJSON(response, 400, { error: `invalid request body: ${error.message}` })
     return
@@ -359,7 +363,7 @@ const server = createServer(async (request, response) => {
     }
   }
 
-  const compaction = compactionCompletion(body)
+  const compaction = runtimeCompletion(body) ?? compactionCompletion(body)
   if (compaction) {
     if (body.stream !== true) writeGeneratedCompletion(response, compaction.content)
     else if (compaction.tool) writeChatCompletion(response, toolCompletionFrames(compaction.tool, compaction.arguments, compaction.id))
@@ -397,10 +401,22 @@ const server = createServer(async (request, response) => {
   }
   if (requestIncludesMarker(body, 'E2E_COMPOSER_PAUSE')) {
     response.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' })
-    response.write(`data: ${JSON.stringify(completionFrame({ role: 'assistant', content: '正在检查门后的脚印，接下来会继续核对沿途留下的线索。'.repeat(8) }))}\n\n`)
+    writeCompletionFrame(response, completionFrame({ role: 'assistant', content: '正在检查门后的脚印，接下来会继续核对沿途留下的线索。'.repeat(8) }))
     await waitForDelayedRelease('E2E_COMPOSER_PAUSE')
-    response.write(`data: ${JSON.stringify(completionFrame({ content: '检查完成。' }, 'stop'))}\n\n`)
-    response.end('data: [DONE]\n\n')
+    writeCompletionFrame(response, completionFrame({ content: '检查完成。' }, 'stop'))
+    finishCompletion(response)
+    return
+  }
+  if (body.input && body.messages.at(-1)?.tool_call_id === 'call-submit-interactive-turn') {
+    writeChatCompletion(response, textCompletionFrames('Turn completed.'))
+    return
+  }
+  if (requestIncludesMarker(body, 'E2E_GAME_TURN_ORDER')) {
+    const afterEarlySubmission = body.messages.at(-1)?.tool_call_id === 'call-early-submit'
+    await waitForDelayedRelease(afterEarlySubmission ? 'E2E_GAME_TURN_ORDER_AFTER_TOOL' : 'E2E_GAME_TURN_ORDER_START')
+    writeChatCompletion(response, afterEarlySubmission
+      ? chatCompletionFrames('The gate opens after the guard leaves.')
+      : toolCompletionFrames('submit_interactive_turn', turnSubmission, 'call-early-submit'))
     return
   }
   if (requestIncludesMarker(body, gameBranchPlanMarker) && requestIncludesTool(body, 'submit_interactive_turn')) {
@@ -428,7 +444,10 @@ const server = createServer(async (request, response) => {
     }
     if (!gameRegenerationAllowed) {
       gameRegenerationFailureRequests += 1
-      writeModelError(response, 'Deterministic Game regeneration failure.')
+      // End the installed runtime's retry loop deterministically. Provider
+      // retry timing is independent of the product's regeneration contract.
+      if (body.input) writeJSON(response, 400, { error: { message: 'Deterministic Game regeneration failure.', type: 'invalid_request_error' } })
+      else writeModelError(response, 'Deterministic Game regeneration failure.')
       return
     }
     writeChatCompletion(response, chatCompletionFrames(regeneratedNarrative))
@@ -440,9 +459,18 @@ const server = createServer(async (request, response) => {
     return
   }
   if (requestIncludesMarker(body, gameFollowUpDelayMarker) && requestIncludesTool(body, 'submit_interactive_turn')) {
+    const callID = 'call-game-follow-up-read'
+    if (body.input && body.messages.some(message => message.tool_call_id === callID)) {
+      writeChatCompletion(response, chatCompletionFrames())
+      return
+    }
     recordRequest(gameFollowUpDelayMarker)
     await waitForDelayedRelease(gameFollowUpDelayMarker)
-    writeChatCompletion(response, chatCompletionFrames())
+    // Native steer interrupts generation; Codex accepts it for the following
+    // model step. A real host read supplies that boundary before submission.
+    writeChatCompletion(response, body.input
+      ? toolCompletionFrames('read', JSON.stringify({ path: 'CREATOR.md' }), callID)
+      : chatCompletionFrames())
     return
   }
   if (requestIncludesTool(body, 'submit_interactive_turn')) {
